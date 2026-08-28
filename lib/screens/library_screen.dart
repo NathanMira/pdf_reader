@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/recent_document.dart';
 import '../services/library_store.dart';
 import '../utils/format.dart';
+import '../widgets/ai_settings_dialog.dart';
 import 'reader_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -137,6 +138,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
           appBar: AppBar(
             title: const Text('PDF阅读'),
             actions: [
+              IconButton(
+                tooltip: 'AI 设置',
+                onPressed: () => showAiSettingsDialog(context, store),
+                icon: const Icon(Icons.auto_awesome),
+              ),
               IconButton(
                 tooltip: store.nightMode ? '关闭夜间模式' : '开启夜间模式',
                 onPressed: () => store.setNightMode(!store.nightMode),

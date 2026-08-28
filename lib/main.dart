@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'config/ai_config.dart';
 import 'screens/library_screen.dart';
 import 'services/library_store.dart';
 
@@ -9,7 +10,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await pdfrxFlutterInitialize();
   final prefs = await SharedPreferences.getInstance();
-  final store = LibraryStore(prefs);
+  final aiConfig = await AiConfig.load();
+  final store = LibraryStore(prefs, aiConfig: aiConfig);
   runApp(PdfReaderApp(store: store));
 }
 

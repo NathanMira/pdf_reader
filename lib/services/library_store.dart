@@ -6,26 +6,51 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/ai_config.dart';
 import '../models/recent_document.dart';
 import '../platform/file_ops.dart';
 
 class LibraryStore extends ChangeNotifier {
-  LibraryStore(this._prefs) {
+  LibraryStore(this._prefs, {AiConfig aiConfig = AiConfig.defaults}) : _fileAiConfig = aiConfig {
     _load();
   }
 
   static const _docsKey = 'recent_documents_v1';
   static const _nightModeKey = 'night_mode';
+  static const _aiApiKeyKey = 'ai_api_key';
+  static const _aiModelKey = 'ai_model';
+  static const _aiBaseUrlKey = 'ai_base_url';
+  static const compileTimeAiApiKey = String.fromEnvironment('DASHSCOPE_API_KEY');
 
   final SharedPreferences _prefs;
+  final AiConfig _fileAiConfig;
   final List<RecentDocument> _documents = [];
   bool _nightMode = false;
+  String _aiApiKey = '';
+  String _aiModel = '';
+  String _aiBaseUrl = '';
 
   List<RecentDocument> get documents => List.unmodifiable(_documents);
   bool get nightMode => _nightMode;
+  AiConfig get fileAiConfig => _fileAiConfig;
+  String get aiApiKey => _aiApiKey;
+  String get aiModel => _aiModel.isNotEmpty ? _aiModel : _fileAiConfig.model;
+  String get aiBaseUrl => _aiBaseUrl.isNotEmpty ? _aiBaseUrl : _fileAiConfig.baseUrl;
+  bool get aiEnableThinking => _fileAiConfig.enableThinking;
+  String get aiReasoningEffort => _fileAiConfig.reasoningEffort;
+  String get effectiveAiApiKey {
+    if (_aiApiKey.isNotEmpty) return _aiApiKey;
+    if (_fileAiConfig.apiKey.isNotEmpty) return _fileAiConfig.apiKey;
+    return compileTimeAiApiKey;
+  }
+
+  bool get hasAiApiKey => effectiveAiApiKey.isNotEmpty;
 
   void _load() {
     _nightMode = _prefs.getBool(_nightModeKey) ?? false;
+    _aiApiKey = _prefs.getString(_aiApiKeyKey) ?? '';
+    _aiModel = _prefs.getString(_aiModelKey) ?? '';
+    _aiBaseUrl = _prefs.getString(_aiBaseUrlKey) ?? '';
     final raw = _prefs.getString(_docsKey);
     if (raw == null || raw.isEmpty) return;
     try {
@@ -52,6 +77,20 @@ class LibraryStore extends ChangeNotifier {
   Future<void> setNightMode(bool value) async {
     _nightMode = value;
     await _prefs.setBool(_nightModeKey, value);
+    notifyListeners();
+  }
+
+  Future<void> saveAiSettings({
+    required String apiKey,
+    required String model,
+    required String baseUrl,
+  }) async {
+    _aiApiKey = apiKey.trim();
+    _aiModel = model.trim();
+    _aiBaseUrl = baseUrl.trim();
+    await _prefs.setString(_aiApiKeyKey, _aiApiKey);
+    await _prefs.setString(_aiModelKey, _aiModel);
+    await _prefs.setString(_aiBaseUrlKey, _aiBaseUrl);
     notifyListeners();
   }
 

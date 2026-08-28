@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/recent_document.dart';
 import '../services/library_store.dart';
+import '../widgets/ai_ask_sheet.dart';
+import '../widgets/ai_settings_dialog.dart';
 import '../widgets/outline_panel.dart';
 import '../widgets/password_dialog.dart';
 import '../widgets/thumbnails_panel.dart';
@@ -104,6 +106,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
       pageAnchorEnd: _horizontal ? PdfPageAnchor.right : PdfPageAnchor.bottom,
       scrollHorizontallyByMouseWheel: _horizontal,
       layoutPages: _horizontal ? _horizontalLayout : null,
+      textSelectionParams: const PdfTextSelectionParams(enabled: true),
+      customizeContextMenuItems: _customizeContextMenuItems,
       keyHandlerParams: const PdfViewerKeyHandlerParams(autofocus: true),
       sizeDelegateProvider: const PdfViewerSizeDelegateProviderLegacy(
         useAlternativeFitScaleAsMinScale: false,
@@ -259,6 +263,42 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _textSearcher?.startTextSearch(query, caseInsensitive: true);
   }
 
+  void _customizeContextMenuItems(
+    PdfViewerContextMenuBuilderParams params,
+    List<ContextMenuButtonItem> items,
+  ) {
+    if (!params.isTextSelectionEnabled || !params.textSelectionDelegate.hasSelectedText) {
+      return;
+    }
+    items.insert(
+      0,
+      ContextMenuButtonItem(
+        label: '问 AI',
+        type: ContextMenuButtonType.custom,
+        onPressed: () async {
+          final text = await params.textSelectionDelegate.getSelectedText();
+          params.dismissContextMenu();
+          if (!mounted) return;
+          await _openAiAsk(quote: text);
+        },
+      ),
+    );
+  }
+
+  Future<void> _openAiAsk({String quote = ''}) async {
+    if (!store.hasAiApiKey) {
+      final configured = await showAiSettingsDialog(context, store);
+      if (configured != true || !mounted) return;
+    }
+    if (!mounted) return;
+    await showAiAskSheet(
+      context: context,
+      store: store,
+      documentName: document.name,
+      quote: quote,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final night = store.nightMode;
@@ -271,6 +311,20 @@ class _ReaderScreenState extends State<ReaderScreen> {
         appBar: AppBar(
           title: Text(document.name, overflow: TextOverflow.ellipsis),
           actions: [
+            IconButton(
+              tooltip: '问 AI',
+              onPressed: () async {
+                var quote = '';
+                try {
+                  if (_controller.isReady) {
+                    quote = await _controller.textSelectionDelegate.getSelectedText();
+                  }
+                } catch (_) {}
+                if (!mounted) return;
+                await _openAiAsk(quote: quote);
+              },
+              icon: const Icon(Icons.auto_awesome),
+            ),
             IconButton(
               tooltip: '搜索',
               onPressed: () => setState(() => _searchOpen = !_searchOpen),
